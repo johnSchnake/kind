@@ -24,6 +24,7 @@ import (
 	"fmt"
 	"io"
 	"net"
+	"os"
 	"regexp"
 	"sort"
 	"strconv"
@@ -149,6 +150,10 @@ func removeDuplicateNetworks(name string) (bool, error) {
 func createNetwork(name, ipv6Subnet string, mtu int) error {
 	args := []string{"network", "create", "-d=bridge",
 		"-o", "com.docker.network.bridge.enable_ip_masquerade=true",
+	}
+	if os.Getenv("KIND_NETWORK_INTERNAL") != ""{
+		fmt.Println("SCHNAKE using internal network flag...")
+		args = append(args, "--internal")
 	}
 	if mtu > 0 {
 		args = append(args, "-o", fmt.Sprintf("com.docker.network.driver.mtu=%d", mtu))

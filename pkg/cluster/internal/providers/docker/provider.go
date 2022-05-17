@@ -173,6 +173,30 @@ func (p *provider) GetAPIServerEndpoint(cluster string) (string, error) {
 	// "Labels": {
 	// 	"desktop.docker.io/ports/6443/tcp": "10.0.1.7:6443",
 	// }
+	if os.Getenv("KIND_NETWORK_INTERNAL") != "" {
+		fmt.Println("SCHNAKE KIND_NETWORK_INTERNAL port access via hostconfig.portbindings...")
+		// else, retrieve the specific port mapping via NetworkSettings.Ports
+		cmd := exec.Command(
+			"docker", "inspect",
+			"--format", fmt.Sprintf(
+				"{{ with (index (index .HostConfig.PortBindings \"%d/tcp\") 0) }}{{ printf \"%%s\t%%s\" .HostIp .HostPort }}{{ end }}", common.APIServerInternalPort,
+			),
+			n.String(),
+		)
+		lines, err := exec.OutputLines(cmd)
+		if err != nil {
+			return "", errors.Wrap(err, "failed to get api server port")
+		}
+		if len(lines) != 1 {
+			return "", errors.Errorf("network details should only be one line, got %d lines", len(lines))
+		}
+		parts := strings.Split(lines[0], "\t")
+		if len(parts) != 2 {
+			return "", errors.Errorf("network details should only be two parts, got %d", len(parts))
+		}
+		fmt.Println("SCHNAKE returning", net.JoinHostPort(parts[0], parts[1]))
+		return net.JoinHostPort(parts[0], parts[1]), nil
+	}
 	cmd := exec.Command(
 		"docker", "inspect",
 		"--format", fmt.Sprintf(
@@ -185,6 +209,7 @@ func (p *provider) GetAPIServerEndpoint(cluster string) (string, error) {
 		return "", errors.Wrap(err, "failed to get api server port")
 	}
 	if len(lines) == 1 && lines[0] != "" {
+		fmt.Println("SCHNAKE returning api server port", lines[0])
 		return lines[0], nil
 	}
 
@@ -209,6 +234,7 @@ func (p *provider) GetAPIServerEndpoint(cluster string) (string, error) {
 	}
 
 	// join host and port
+	fmt.Println("SCHNAKE returning joining host/port", net.JoinHostPort(parts[0], parts[1]))
 	return net.JoinHostPort(parts[0], parts[1]), nil
 }
 
